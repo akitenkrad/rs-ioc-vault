@@ -1,29 +1,31 @@
-# ユースケース
+**English** | [日本語](usecases.ja.md)
 
-`rs-ioc-vault` は OSINT 由来の IoC を 1 つの SQLite ファイルに集約し，CLI とライブラリの両方から扱える IoC ストアです．以下に代表的な利用シナリオを示します．
+# Use Cases
 
-## 1. SOC アナリストによるローカル即時照会
+`rs-ioc-vault` is an IoC store that consolidates OSINT-derived IoCs into a single SQLite file and lets you work with them from both the CLI and the library. Below are representative usage scenarios.
 
-調査中の IP / ドメイン / ハッシュが既知の脅威かどうかを，外部 API に依存せずローカルで即座に確認します．
+## 1. Instant local lookups by SOC analysts
+
+Instantly check whether an IP / domain / hash under investigation is a known threat, locally and without relying on external APIs.
 
 ```bash
-# 初期化と取り込み (初回のみ)
+# Initialize and ingest (first time only)
 ioc-vault init
 ioc-vault update --all --since 7d
 
-# 単一値の照会
+# Single-value lookup
 ioc-vault lookup 203.0.113.42
 ioc-vault lookup evil.example.com --format json
 
-# 標準入力からの一括照会
+# Bulk lookup from standard input
 cat suspicious_hosts.txt | while read v; do ioc-vault lookup "$v"; done
 ```
 
-照会結果には集約確信度・観測ソース・脅威種別・関連 CVE・時間減衰スコアが含まれます．
+Lookup results include the aggregated confidence, observation sources, threat type, related CVEs, and the time-decay score.
 
-## 2. 検知パイプラインへのライブラリ組み込み
+## 2. Embedding the library into a detection pipeline
 
-検知エンジンやバッチジョブに `rs-ioc-vault` をライブラリとして組み込み，高頻度の照会・検索を行います．ストアはステートレスに開閉でき，in-memory モードも利用できます．
+Embed `rs-ioc-vault` as a library into detection engines or batch jobs to perform high-frequency lookups and searches. The store can be opened and closed statelessly, and an in-memory mode is also available.
 
 ```rust
 use rs_ioc_vault::{IocVault, SearchQuery, IocType};
@@ -38,53 +40,53 @@ let q = SearchQuery::builder()
 let hits = vault.search(&q).await?;
 ```
 
-詳細は [library.md](library.md) を参照してください．
+See [library.md](library.md) for details.
 
-## 3. TIP / SIEM 連携用の定期エクスポート
+## 3. Scheduled exports for TIP / SIEM integration
 
-蓄積した IoC を STIX 2.1 バンドルや MISP イベントとして定期的に書き出し，TIP・SIEM・SOAR に取り込みます．
+Periodically write out accumulated IoCs as STIX 2.1 bundles or MISP events and ingest them into TIP, SIEM, or SOAR systems.
 
 ```bash
-# 直近 7 日分を STIX 2.1 バンドルで出力
+# Export the last 7 days as a STIX 2.1 bundle
 ioc-vault export --format stix --since 7d --out feed.json
 
-# フィッシング系のみ MISP イベントで出力
+# Export only phishing-related entries as a MISP event
 ioc-vault export --format misp --threat-type phishing --out phishing.misp.json
 
-# 高確信度 IPv4 を CSV で出力
+# Export high-confidence IPv4 entries as CSV
 ioc-vault export --format csv --type ipv4 --min-confidence 80 --out ipv4.csv
 ```
 
-`export` は `search` と同一のフィルタを受け付けるため，検索条件をそのまま配信内容に反映できます．
+Because `export` accepts the same filters as `search`, your search conditions carry over directly to what gets distributed.
 
-## 4. 差分更新と監査可能な収集ログ
+## 4. Incremental updates and an auditable collection log
 
-フィードは ETag / Last-Modified を尊重した差分取得を行い，変更がなければスキップします．各収集ランは記録され，いつ・どのソースから・何件取り込んだかを後から追跡できます．
+Feeds are fetched incrementally, honoring ETag / Last-Modified, and skipped when nothing has changed. Each collection run is recorded, so you can later trace when, from which source, and how many entries were ingested.
 
 ```bash
-# 特定ソースを期間指定で差分更新
+# Incrementally update a specific source with a date range
 ioc-vault update --source threatfox --since 2026-04-01
 
-# 取り込み状況・件数の確認
+# Check ingestion status and counts
 ioc-vault stats
 ioc-vault source list
 ```
 
-## 5. 確信度集約と時間減衰によるノイズ低減
+## 5. Noise reduction via confidence aggregation and time decay
 
-同一 IoC が複数ソースから観測された場合，独立証拠とみなして確信度を集約します．また IoC 種別ごとの半減期に基づき時間減衰スコアを再計算し，古い指標の重みを下げられます．
+When the same IoC is observed from multiple sources, the observations are treated as independent evidence and the confidence is aggregated. The time-decay score is also recomputed based on a per-IoC-type half-life, lowering the weight of stale indicators.
 
 ```bash
-# 時間減衰スコアの再計算
+# Recompute time-decay scores
 ioc-vault decay
 
-# 減衰スコアの高い (=新しく信頼度の高い) 指標を抽出
+# Extract indicators with high decay scores (i.e., recent and high-confidence)
 ioc-vault search --type url --min-decay 0.5 --order decay-desc --limit 100
 ```
 
-## 6. データレイクの最下層 (Bronze layer) として運用
+## 6. Operating as the bottom layer (Bronze layer) of a data lake
 
-正規化・重複排除済みの raw IoC ストアとして運用し，下流の分析パイプライン (エンリッチ・相関分析・スコアリング) に JSONL / CSV で供給します．
+Operate it as a normalized, deduplicated raw IoC store and feed downstream analysis pipelines (enrichment, correlation analysis, scoring) with JSONL / CSV.
 
 ```bash
 ioc-vault export --format jsonl --since 1d > bronze/iocs-$(date +%F).jsonl
@@ -92,4 +94,4 @@ ioc-vault export --format jsonl --since 1d > bronze/iocs-$(date +%F).jsonl
 
 ---
 
-関連ドキュメント: [CLI リファレンス](cli.md) ・ [ライブラリ利用](library.md) ・ [アーキテクチャ](architecture.md)
+Related documents: [CLI Reference](cli.md) · [Library Usage](library.md) · [Architecture](architecture.md)

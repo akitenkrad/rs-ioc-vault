@@ -1,41 +1,43 @@
-# アーキテクチャ
+**English** | [日本語](architecture.ja.md)
 
-`rs-ioc-vault` は Cargo workspace として複数クレートに分割され，利用者は必要なものだけ依存できます．依存方向は上位 → 下位の一方向で，下位の I/O はトレイトの裏に隠されます．
+# Architecture
 
-## クレート構成
+`rs-ioc-vault` is split into several crates within a Cargo workspace, so consumers can depend only on what they need. Dependencies flow in a single direction, from higher to lower layers, and lower-layer I/O is hidden behind traits.
 
-| クレート | レイヤー | 役割 |
+## Crate layout
+
+| Crate | Layer | Role |
 |----------|---------|------|
-| `ioc-vault-core` | Domain | I/O を持たないドメインモデル (IoC 型・正規化・dedup ハッシュ・検索クエリ・減衰モデル) |
-| `ioc-vault-store` | Infrastructure | SQLite (sqlx) 永続化・検索エンジン・確信度集約・時間減衰 |
-| `ioc-vault-collect` | Domain | コレクタトレイトと収集コンテキスト (差分取得 / 304) |
-| `ioc-vault-adapters` | Adapter | 個別フィードのアダプタ (URLhaus / ThreatFox / CISA KEV)。feature-gated |
-| `ioc-vault-export` | Adapter | CSV / JSONL / STIX 2.1 / MISP へのエクスポート |
-| `rs-ioc-vault` | Application | 上記を束ねる公開ファサード `IocVault` |
-| `ioc-vault-cli` | UI | 単一バイナリ `ioc-vault` |
+| `ioc-vault-core` | Domain | I/O-free domain model (IoC types, normalization, dedup hash, search query, decay model) |
+| `ioc-vault-store` | Infrastructure | SQLite (sqlx) persistence, search engine, confidence aggregation, time decay |
+| `ioc-vault-collect` | Domain | Collector trait and collection context (incremental fetch / 304) |
+| `ioc-vault-adapters` | Adapter | Per-feed adapters (URLhaus / ThreatFox / CISA KEV); feature-gated |
+| `ioc-vault-export` | Adapter | Export to CSV / JSONL / STIX 2.1 / MISP |
+| `rs-ioc-vault` | Application | The public facade `IocVault` that ties the above together |
+| `ioc-vault-cli` | UI | The single binary `ioc-vault` |
 
-## データの流れ
+## Data flow
 
 ```
-OSINT feeds → Collector → 正規化 / dedup → SQLite (WAL + FTS5) → Query / Export → CLI · STIX · MISP
+OSINT feeds → Collector → normalize / dedup → SQLite (WAL + FTS5) → Query / Export → CLI · STIX · MISP
 ```
 
-1. **収集**: `Collector` が ETag / Last-Modified を尊重してフィードを取得し，`RawIoc` のストリームを返します．
-2. **正規化と重複排除**: IoC 種別ごとの規則で値を正規化し，`SHA-256(type || ":" || value)` を dedup キーとして 1 レコードに集約します．
-3. **永続化**: 単一の SQLite ファイル (WAL モード，FTS5 全文検索) に格納します．
-4. **集約**: 複数ソースの観測を独立証拠とみなして確信度を Bayes 風に集約し，IoC 種別ごとの半減期で時間減衰スコアを算出します．
-5. **検索 / エクスポート**: 複合条件検索 (種別・期間・確信度・CIDR・正規表現・FTS5) と標準形式エクスポート (STIX 2.1 / MISP / CSV / JSONL) を提供します．
+1. **Collection**: `Collector` fetches feeds while honoring ETag / Last-Modified and returns a stream of `RawIoc`.
+2. **Normalization and deduplication**: Values are normalized by per-IoC-type rules and consolidated into a single record using `SHA-256(type || ":" || value)` as the dedup key.
+3. **Persistence**: Stored in a single SQLite file (WAL mode, FTS5 full-text search).
+4. **Aggregation**: Observations from multiple sources are treated as independent evidence and the confidence is aggregated in a Bayesian-style manner, while time-decay scores are computed using per-IoC-type half-lives.
+5. **Search / Export**: Provides compound-condition search (type, period, confidence, CIDR, regex, FTS5) and standard-format export (STIX 2.1 / MISP / CSV / JSONL).
 
-## 永続化の方針
+## Persistence approach
 
-- 単一 SQLite ファイルで完結し，外部 DB サーバを必要としません．
-- WAL モード + バッチコミットでバルク取り込みを高速化します．
-- 全文検索はトリガで本体テーブルと同期される FTS5 仮想テーブルを利用します．
-- スキーマは `migrations/` のマイグレーションでバージョン管理されます．
+- It is self-contained in a single SQLite file and requires no external DB server.
+- WAL mode plus batch commits speed up bulk ingestion.
+- Full-text search uses an FTS5 virtual table kept in sync with the main table via triggers.
+- The schema is version-controlled via migrations in `migrations/`.
 
-## 設計上の選択
+## Design choices
 
-- ドメイン層 (`ioc-vault-core`) は I/O 依存を持たず，テスト容易性を保ちます．
-- アダプタは feature flag で個別に有効化でき，未使用ソースのコンパイルコストを排除します．
-- エラーはアプリ層で `anyhow`，ライブラリ層で `thiserror` の二層構成とします．
-- IoC 型は STIX 2.1 Cyber-observable の命名に準拠し，エクスポート時の写像を単純化します．
+- The domain layer (`ioc-vault-core`) has no I/O dependencies, preserving testability.
+- Adapters can be enabled individually via feature flags, eliminating the compile cost of unused sources.
+- Errors use a two-layer structure: `anyhow` at the application layer and `thiserror` at the library layer.
+- IoC types follow the STIX 2.1 Cyber-observable naming, simplifying the mapping at export time.
