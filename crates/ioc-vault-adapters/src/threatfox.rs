@@ -11,12 +11,26 @@ use serde::Deserialize;
 const API_URL: &str = "https://threatfox-api.abuse.ch/api/v1/";
 
 /// Collector for the ThreatFox `get_iocs` API.
+///
+/// The ThreatFox API requires authentication: every request must carry an
+/// `Auth-Key` header. Obtain a free key at <https://auth.abuse.ch/>.
 #[derive(Debug, Clone, Default)]
-pub struct ThreatFoxCollector;
+pub struct ThreatFoxCollector {
+    auth_key: Option<String>,
+}
 
 impl ThreatFoxCollector {
+    /// Build a collector without an Auth-Key. Collection will fail with a
+    /// clear error until [`with_auth_key`](Self::with_auth_key) is used.
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    /// Build a collector that authenticates with the given abuse.ch Auth-Key.
+    pub fn with_auth_key(key: impl Into<String>) -> Self {
+        Self {
+            auth_key: Some(key.into()),
+        }
     }
 }
 
@@ -60,6 +74,13 @@ impl Collector for ThreatFoxCollector {
     }
 
     async fn collect(&self, ctx: CollectionContext<'_>) -> anyhow::Result<CollectionResult> {
+        let Some(auth_key) = self.auth_key.as_deref().filter(|k| !k.trim().is_empty()) else {
+            anyhow::bail!(
+                "ThreatFox requires authentication; set THREATFOX_AUTH_KEY \
+                 (get a free Auth-Key at https://auth.abuse.ch/)"
+            );
+        };
+
         // Derive a day window from `since`; default to the last day.
         let days = match ctx.since {
             Some(since) => {
@@ -72,10 +93,21 @@ impl Collector for ThreatFoxCollector {
         let resp = ctx
             .http_client
             .post(API_URL)
+            .header("Auth-Key", auth_key)
             .json(&payload)
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+        let status = resp.status();
+        if status == reqwest::StatusCode::UNAUTHORIZED
+            || status == reqwest::StatusCode::FORBIDDEN
+        {
+            anyhow::bail!(
+                "ThreatFox rejected the Auth-Key ({status}); check that THREATFOX_AUTH_KEY \
+                 (or config.toml threatfox.auth_key) is a valid abuse.ch Auth-Key \
+                 (https://auth.abuse.ch/)"
+            );
+        }
+        let resp = resp.error_for_status()?;
         let body = resp.bytes().await?;
         let items = parse_threatfox_json(&body)?;
         let stream = futures::stream::iter(items).map(Ok).boxed();

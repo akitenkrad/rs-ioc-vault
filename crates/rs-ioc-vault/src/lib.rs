@@ -64,6 +64,7 @@ pub struct IocVaultBuilder {
     db_path: Option<PathBuf>,
     in_memory: bool,
     collectors: Vec<Box<dyn Collector>>,
+    threatfox_auth_key: Option<String>,
 }
 
 impl IocVaultBuilder {
@@ -71,6 +72,16 @@ impl IocVaultBuilder {
     pub fn database(mut self, path: impl Into<PathBuf>) -> Self {
         self.db_path = Some(path.into());
         self.in_memory = false;
+        self
+    }
+
+    /// Set the ThreatFox abuse.ch Auth-Key used by the default collectors.
+    ///
+    /// Must be called *before* [`with_default_collectors`](Self::with_default_collectors).
+    /// When unset, [`with_default_collectors`](Self::with_default_collectors) falls
+    /// back to the `THREATFOX_AUTH_KEY` environment variable.
+    pub fn threatfox_auth_key(mut self, key: Option<String>) -> Self {
+        self.threatfox_auth_key = key.filter(|k| !k.trim().is_empty());
         self
     }
 
@@ -97,8 +108,18 @@ impl IocVaultBuilder {
             }
             #[cfg(feature = "threatfox")]
             {
-                self.collectors
-                    .push(Box::new(ioc_vault_adapters::ThreatFoxCollector::new()));
+                // ThreatFox requires an abuse.ch Auth-Key. Prefer an explicitly
+                // configured key, falling back to the THREATFOX_AUTH_KEY env var.
+                let key = self.threatfox_auth_key.clone().or_else(|| {
+                    std::env::var("THREATFOX_AUTH_KEY")
+                        .ok()
+                        .filter(|k| !k.trim().is_empty())
+                });
+                let collector = match key {
+                    Some(k) => ioc_vault_adapters::ThreatFoxCollector::with_auth_key(k),
+                    None => ioc_vault_adapters::ThreatFoxCollector::new(),
+                };
+                self.collectors.push(Box::new(collector));
             }
             #[cfg(feature = "cisa-kev")]
             {

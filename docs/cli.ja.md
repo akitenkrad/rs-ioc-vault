@@ -46,6 +46,24 @@ ioc-vault update --source threatfox --since 2026-04-01
 
 `--since` は `7d` のような相対日数か `YYYY-MM-DD` 形式の日付を受け付けます．差分取得 (ETag / Last-Modified) に対応し，変更がなければスキップします．
 
+### 認証 (ThreatFox)
+
+ThreatFox API は abuse.ch の Auth-Key を必須とします．<https://auth.abuse.ch/> で無料のキーを取得し，次のいずれかの方法で渡してください（環境変数が優先されます）：
+
+```bash
+# 1. 環境変数
+export THREATFOX_AUTH_KEY="your-auth-key"
+ioc-vault update --all --since 7d
+```
+
+```toml
+# 2. 設定ファイル ~/.ioc-vault/config.toml
+[threatfox]
+auth_key = "your-auth-key"
+```
+
+キーが無い場合，`threatfox` ソースは分かりやすいエラーで即座に失敗します（他のソースには影響しません）．
+
 ## lookup
 
 ```bash

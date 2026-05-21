@@ -1,5 +1,7 @@
 //! `ioc-vault` command-line interface.
 
+mod config;
+
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -316,8 +318,11 @@ async fn main() -> anyhow::Result<()> {
         None => default_db_path()?,
     };
 
+    let cfg = config::Config::load(&config::default_config_path()?)?;
+
     let vault = IocVault::builder()
         .database(&db)
+        .threatfox_auth_key(cfg.threatfox_auth_key())
         .with_default_collectors()
         .build()
         .await?;
