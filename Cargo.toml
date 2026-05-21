@@ -1,0 +1,50 @@
+[workspace]
+members = [
+  "crates/ioc-vault-core",
+  "crates/ioc-vault-store",
+  "crates/ioc-vault-collect",
+  "crates/ioc-vault-adapters",
+  "crates/ioc-vault-export",
+  "crates/rs-ioc-vault",
+  "crates/ioc-vault-cli",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+repository = "https://github.com/akitenkrad/rs-ioc-vault"
+rust-version = "1.85"
+version = "0.1.0"
+
+[workspace.dependencies]
+# internal crates
+ioc-vault-core = { path = "./crates/ioc-vault-core" }
+ioc-vault-store = { path = "./crates/ioc-vault-store" }
+ioc-vault-collect = { path = "./crates/ioc-vault-collect" }
+ioc-vault-adapters = { path = "./crates/ioc-vault-adapters", default-features = false }
+ioc-vault-export = { path = "./crates/ioc-vault-export" }
+rs-ioc-vault = { path = "./crates/rs-ioc-vault" }
+# external
+anyhow = "1.0"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+csv = "1"
+futures = "0.3"
+hex = "0.4"
+idna = "1"
+ipnet = { version = "2", features = ["serde"] }
+regex = "1"
+reqwest = { version = "0.12", features = ["json", "stream", "gzip"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono", "migrate"] }
+test-log = { version = "0.2", features = ["trace"] }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+url = "2"

@@ -1,0 +1,16 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ioc-vault-collect"
+publish.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[dependencies]
+ioc-vault-core = { workspace = true }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+reqwest = { workspace = true }

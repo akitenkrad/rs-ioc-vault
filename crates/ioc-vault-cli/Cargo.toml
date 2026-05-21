@@ -1,0 +1,23 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ioc-vault-cli"
+publish.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "ioc-vault"
+path = "src/main.rs"
+
+[dependencies]
+rs-ioc-vault = { workspace = true }
+
+anyhow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+ipnet = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

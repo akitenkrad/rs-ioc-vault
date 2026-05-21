@@ -1,0 +1,36 @@
+[config]
+default_to_workspace = false
+
+# ============ BUILD TASKS ============
+[tasks.release-build]
+description = "Build the project."
+script = """cargo build --release"""
+
+[tasks.dev-build]
+description = "Build the project."
+script = """cargo build"""
+
+# ============ LINT TASKS ============
+[tasks.format-all]
+dependencies = ["sort-cargo-toml", "clippy", "reformat"]
+description = "Format all code in the project."
+
+[tasks.sort-cargo-toml]
+description = "Sort the Cargo.toml files in the project."
+install_crate = "taplo-cli"
+script = """taplo fmt --option reorder_keys=true"""
+
+[tasks.clippy]
+description = "Run clippy over the workspace."
+script = """cargo clippy --workspace --all-targets -- -D warnings"""
+
+[tasks.reformat]
+description = "Reformat the code using rustfmt."
+script = """cargo fmt -- --emit files"""
+
+# ============ TEST TASKS ============
+[tasks.nextest-run]
+dependencies = ["dev-build"]
+description = "Run all tests in the project."
+install_crate = "cargo-nextest"
+script = """cargo nextest run --workspace --status-level all --test-threads=1"""
