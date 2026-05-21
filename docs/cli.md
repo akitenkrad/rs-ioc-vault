@@ -2,7 +2,7 @@
 
 # CLI Reference (`ioc-vault`)
 
-`ioc-vault` is a single-binary CLI. Specify the database with `--db <PATH>`; when omitted, it uses `~/.ioc-vault/vault.db`.
+`ioc-vault` is a single-binary CLI. Two global options are available on every command: `--db <PATH>` selects the database (default `~/.ioc-vault/vault.db`), and `--config <PATH>` selects the config file (default `~/.ioc-vault/config.toml`).
 
 ```
 ioc-vault <COMMAND> [OPTIONS]
@@ -61,6 +61,12 @@ ioc-vault update --all --since 7d
 #    (copy the repo's config.toml.example as a starting point)
 [threatfox]
 auth_key = "your-auth-key"
+```
+
+The config file is read from `~/.ioc-vault/config.toml` by default. To use a config file elsewhere (for example the `config.toml` in a project directory), point to it with `--config`:
+
+```bash
+ioc-vault update --all --since 7d --config ./config.toml
 ```
 
 Without a key, the `threatfox` source fails fast with a clear error (the other sources are unaffected).

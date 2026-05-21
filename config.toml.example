@@ -4,6 +4,10 @@
 #
 #     cp config.toml.example ~/.ioc-vault/config.toml
 #
+# Alternatively, keep it anywhere and point to it explicitly:
+#
+#     ioc-vault update --all --since 7d --config ./config.toml
+#
 # Every section is optional. Environment variables take precedence over the
 # values set here (e.g. THREATFOX_AUTH_KEY overrides [threatfox] auth_key).
 

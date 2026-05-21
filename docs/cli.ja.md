@@ -2,7 +2,7 @@
 
 # CLI リファレンス (`ioc-vault`)
 
-`ioc-vault` は単一バイナリの CLI です．データベースは `--db <PATH>` で指定し，省略時は `~/.ioc-vault/vault.db` を使用します．
+`ioc-vault` は単一バイナリの CLI です．すべてのコマンドで 2 つのグローバルオプションが使えます：`--db <PATH>` でデータベースを指定し（省略時は `~/.ioc-vault/vault.db`），`--config <PATH>` で設定ファイルを指定します（省略時は `~/.ioc-vault/config.toml`）．
 
 ```
 ioc-vault <COMMAND> [OPTIONS]
@@ -61,6 +61,12 @@ ioc-vault update --all --since 7d
 #    (リポジトリの config.toml.example を雛形として利用できます)
 [threatfox]
 auth_key = "your-auth-key"
+```
+
+設定ファイルはデフォルトで `~/.ioc-vault/config.toml` から読み込まれます．別の場所にある設定ファイル（例：プロジェクトディレクトリ内の `config.toml`）を使う場合は `--config` で指定してください：
+
+```bash
+ioc-vault update --all --since 7d --config ./config.toml
 ```
 
 キーが無い場合，`threatfox` ソースは分かりやすいエラーで即座に失敗します（他のソースには影響しません）．

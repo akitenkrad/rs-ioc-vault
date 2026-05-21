@@ -19,6 +19,10 @@ struct Cli {
     #[arg(long, global = true)]
     db: Option<PathBuf>,
 
+    /// Config file path (default: ~/.ioc-vault/config.toml).
+    #[arg(long, global = true)]
+    config: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -318,7 +322,11 @@ async fn main() -> anyhow::Result<()> {
         None => default_db_path()?,
     };
 
-    let cfg = config::Config::load(&config::default_config_path()?)?;
+    let config_path = match &cli.config {
+        Some(p) => p.clone(),
+        None => config::default_config_path()?,
+    };
+    let cfg = config::Config::load(&config_path)?;
 
     let vault = IocVault::builder()
         .database(&db)
