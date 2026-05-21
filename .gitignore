@@ -10,6 +10,8 @@ target/
 
 # Environment / secrets
 .env
+# Local config holding API keys (use config.toml.example as a template)
+config.toml
 
 # Local runtime data
 *.db

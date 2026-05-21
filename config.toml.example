@@ -1,0 +1,13 @@
+# ioc-vault configuration template.
+#
+# Copy this file to ~/.ioc-vault/config.toml and fill in your values:
+#
+#     cp config.toml.example ~/.ioc-vault/config.toml
+#
+# Every section is optional. Environment variables take precedence over the
+# values set here (e.g. THREATFOX_AUTH_KEY overrides [threatfox] auth_key).
+
+[threatfox]
+# abuse.ch Auth-Key for the ThreatFox API. Required to fetch the `threatfox`
+# source. Get a free key at https://auth.abuse.ch/
+auth_key = "your-auth-key"

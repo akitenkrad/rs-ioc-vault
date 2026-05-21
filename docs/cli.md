@@ -58,6 +58,7 @@ ioc-vault update --all --since 7d
 
 ```toml
 # 2. Config file at ~/.ioc-vault/config.toml
+#    (copy the repo's config.toml.example as a starting point)
 [threatfox]
 auth_key = "your-auth-key"
 ```

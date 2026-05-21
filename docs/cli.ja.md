@@ -58,6 +58,7 @@ ioc-vault update --all --since 7d
 
 ```toml
 # 2. 設定ファイル ~/.ioc-vault/config.toml
+#    (リポジトリの config.toml.example を雛形として利用できます)
 [threatfox]
 auth_key = "your-auth-key"
 ```
