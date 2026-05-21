@@ -5,12 +5,14 @@
 //! enrich, export) build on these types.
 
 pub mod decay;
+pub mod defang;
 pub mod error;
 pub mod normalize;
 pub mod query;
 pub mod types;
 
 pub use decay::DecayModel;
+pub use defang::{defang, defang_auto, defang_json, is_defanged};
 pub use error::{CoreError, Result};
 pub use normalize::{normalize, value_hash};
 pub use query::{OrderBy, SearchQuery, SearchQueryBuilder, ValueMatcher};

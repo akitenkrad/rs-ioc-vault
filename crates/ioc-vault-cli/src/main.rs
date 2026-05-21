@@ -8,6 +8,7 @@ use anyhow::Context;
 use clap::{Args, Parser, Subcommand};
 use rs_ioc_vault::{
     DecayModel, ExportFormat, IocType, OrderBy, SearchQuery, Tlp, UpdateOptions, ValueMatcher,
+    defang, defang_auto, defang_json,
 };
 use rs_ioc_vault::IocVault;
 use std::str::FromStr;
@@ -22,6 +23,12 @@ struct Cli {
     /// Config file path (default: ~/.ioc-vault/config.toml).
     #[arg(long, global = true)]
     config: Option<PathBuf>,
+
+    /// Show raw, live indicator values in human-readable output instead of
+    /// defanged ones (e.g. `http://evil.com` rather than `hxxp[://]evil[.]com`).
+    /// Off by default so values are never accidentally clickable.
+    #[arg(long, global = true)]
+    no_defang: bool,
 
     #[command(subcommand)]
     command: Command,
@@ -307,6 +314,17 @@ fn build_search_query(args: &FilterArgs) -> anyhow::Result<SearchQuery> {
     Ok(b.order_by(args.order.into()).limit(args.limit).build())
 }
 
+/// Serialize `val` to JSON, recursively defanging every embedded string when
+/// `defang_enabled` is set so that machine-readable output is never clickable.
+/// With `--no-defang` the value is serialized verbatim for downstream tooling.
+fn to_json<T: serde::Serialize>(val: &T, defang_enabled: bool) -> anyhow::Result<serde_json::Value> {
+    let mut v = serde_json::to_value(val)?;
+    if defang_enabled {
+        defang_json(&mut v);
+    }
+    Ok(v)
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -317,6 +335,16 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
+    // Default to defanged (non-clickable) values in human-readable output;
+    // `--no-defang` opts back into raw values for copy-paste workflows.
+    let defang_enabled = !cli.no_defang;
+    let safe = |ioc_type: IocType, value: &str| -> String {
+        if defang_enabled {
+            defang(ioc_type, value)
+        } else {
+            value.to_string()
+        }
+    };
     let db = match &cli.db {
         Some(p) => p.clone(),
         None => default_db_path()?,
@@ -404,15 +432,20 @@ async fn main() -> anyhow::Result<()> {
             match (rec, format) {
                 (None, OutputFormat::Json) => println!("null"),
                 (None, OutputFormat::Jsonl) => {}
-                (None, OutputFormat::Table) => println!("not found: {value}"),
+                (None, OutputFormat::Table) => {
+                    let shown = if defang_enabled { defang_auto(&value) } else { value.clone() };
+                    println!("not found: {shown}");
+                }
                 (Some(rec), OutputFormat::Json) => {
-                    println!("{}", serde_json::to_string_pretty(&rec)?);
+                    let v = to_json(&rec, defang_enabled)?;
+                    println!("{}", serde_json::to_string_pretty(&v)?);
                 }
                 (Some(rec), OutputFormat::Jsonl) => {
-                    println!("{}", serde_json::to_string(&rec)?);
+                    let v = to_json(&rec, defang_enabled)?;
+                    println!("{}", serde_json::to_string(&v)?);
                 }
                 (Some(rec), OutputFormat::Table) => {
-                    println!("value:       {}", rec.value);
+                    println!("value:       {}", safe(rec.ioc_type, &rec.value));
                     println!("type:        {}", rec.ioc_type);
                     println!("confidence:  {}", rec.confidence);
                     println!("first_seen:  {}", rec.first_seen);
@@ -437,11 +470,13 @@ async fn main() -> anyhow::Result<()> {
             let results = vault.search(&q).await?;
             match args.format {
                 OutputFormat::Json => {
-                    println!("{}", serde_json::to_string_pretty(&results)?);
+                    let v = to_json(&results, defang_enabled)?;
+                    println!("{}", serde_json::to_string_pretty(&v)?);
                 }
                 OutputFormat::Jsonl => {
                     for rec in &results {
-                        println!("{}", serde_json::to_string(rec)?);
+                        let v = to_json(rec, defang_enabled)?;
+                        println!("{}", serde_json::to_string(&v)?);
                     }
                 }
                 OutputFormat::Table => {
@@ -455,7 +490,7 @@ async fn main() -> anyhow::Result<()> {
                         for rec in &results {
                             println!(
                                 "{:<40} {:<14} {:>4} {:<25} {:>7}",
-                                rec.value,
+                                safe(rec.ioc_type, &rec.value),
                                 rec.ioc_type.to_string(),
                                 rec.confidence,
                                 rec.last_seen.to_rfc3339(),
